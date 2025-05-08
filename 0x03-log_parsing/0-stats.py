@@ -1,85 +1,79 @@
 #!/usr/bin/python3
 """
-Script that reads stdin line by line and computes metrics.
-
-Input format: <IP Address> - [<date>] "GET /projects/260 HTTP/1.1"
-<status code> <file size>
-After every 10 lines and/or a keyboard interruption
-(CTRL + C), print these statistics:
-    - Total file size: File size: <total size>
-    - Number of lines by status code:
-        - possible status code: 200, 301, 400, 401, 403, 404, 405 and 500
-        - format: <status code>: <number>
-        - status codes should be printed in ascending order
+This module contains a script that reads from stdin and computes metrics
 """
-
-import sys
 import re
+import sys
 
 
-def print_stats(total_size, status_codes):
+PATTERN = (r"^(\S+) ?"
+           r"- ?\[\S+ ?\S+\] "
+           r"\"GET /projects/260 HTTP/1\.1\" "
+           r"(\S+) (\S+)$")
+
+
+def extract_status_and_size(line):
     """
-    Print the statistics.
+    Extracts the status code and size from a log line
 
     Args:
-        total_size (int): The total file size.
-        status_codes (dict): The count of each status code.
+        line (str): The log line to parse
+
+    Returns:
+        Tuple[Optional[str], Optional[str]]: A tuple of the status code & size
     """
-    print(f"File size: {total_size}")
-    for code in sorted(status_codes.keys()):
-        if status_codes[code] > 0:
-            print(f"{code}: {status_codes[code]}")
+    match = re.search(PATTERN, line)
+
+    if match:
+        return (match.group(2), match.group(3))
+    else:
+        return None, None
 
 
-def main():
+def printMetrics(total_size, status_codes):
     """
-    Main function to process stdin line by line and compute metrics.
+    Prints the metrics for the log lines read so far
+
+    Args:
+        total_size (int): The total size of all the log lines read so far
+        status_codes (Dict[str, int]): A dict of status codes & their counts
+
+    Returns:
+        None
     """
-    # Initialize variables
-    total_size = 0
-    line_count = 0
-    status_codes = {
-        200: 0, 301: 0, 400: 0, 401: 0,
-        403: 0, 404: 0, 405: 0, 500: 0
-    }
-
-    # Define the pattern to match the log format
-    pattern = r'(\d+\.\d+\.\d+\.\d+) - \[(.*?)\]
-    "GET /projects/260 HTTP/1\.1" (\d+) (\d+)'
-
-    try:
-        for line in sys.stdin:
-            line = line.strip()
-            match = re.match(pattern, line)
-
-            if match:
-                _, _, status_code, file_size = match.groups()
-  
-                try:
-                    status_code = int(status_code)
-                    file_size = int(file_size)
-
-                    # Update metrics
-                    total_size += file_size
-                    if status_code in status_codes:
-                        status_codes[status_code] += 1
-                except ValueError:
-                    # Skip if status_code or file_size is not a valid integer
-                    pass
-
-            line_count += 1
-
-            # Print stats every 10 lines
-            if line_count % 10 == 0:
-                print_stats(total_size, status_codes)
-     
-    except KeyboardInterrupt:
-        # Handle Ctrl+C interruption
-        pass
-    finally:
-        # Print the final stats
-        print_stats(total_size, status_codes)
+    print("File size: {}".format(str(total_size)))
+    for status_code in sorted(status_codes.keys()):
+        if status_codes[status_code] != 0:
+            print("{}: {}".format(status_code, str(status_codes[status_code])))
 
 
-if __name__ == "__main__":
-    main()
+status_codes = {
+                "200": 0, "301": 0,
+                "400": 0, "401": 0,
+                "403": 0, "404": 0,
+                "405": 0, "500": 0}
+total_size = 0
+lines = 0
+
+try:
+    for line in sys.stdin:
+        lines += 1
+
+        status_code, size = extract_status_and_size(line.strip())
+        if status_code and size:
+            try:
+                total_size += int(size)
+            except Exception:
+                pass
+            try:
+                if status_code in status_codes:
+                    status_codes[status_code] += 1
+            except Exception:
+                pass
+
+        if lines % 10 == 0 and lines != 0:
+            printMetrics(total_size, status_codes)
+    printMetrics(total_size, status_codes)
+except KeyboardInterrupt:
+    printMetrics(total_size, status_codes)
+    raise
