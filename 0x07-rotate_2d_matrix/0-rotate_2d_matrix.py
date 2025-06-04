@@ -19,7 +19,3 @@ def rotate_2d_matrix(matrix):
 
     for row in matrix:
         row.reverse()
-    return matrix
-
-    for row in matrix:
-        print(" ".join(str(x) for x in row))
