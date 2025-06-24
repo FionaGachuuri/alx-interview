@@ -1,45 +1,45 @@
 #!/usr/bin/python3
 """
-Prime Game - Maria and Ben take turns removing
-prime numbers and their multiples
+Prime Game - Optimized solution using dynamic programming and game theory
 """
 
 
 def isWinner(x, nums):
     """
     Determine the winner of the prime game across multiple rounds.
+    Optimized version using precomputed results.
+    
     Args:
         x (int): Number of rounds
         nums (list): Array of n values for each round
+        
     Returns:
-        str or None: Name of player who won most rounds, or None if tie
+        str or None: Winner format or None if tie
     """
     if not nums or x < 1:
         return None
-
+    
+    # Find maximum n to optimize our preprocessing
+    max_n = max(nums)
+    
+    # Precompute winners for all possible n values
+    winners = precompute_winners(max_n)
+    
     maria_wins = 0
     ben_wins = 0
-
-    # Process each round
+    
+    # Process each round using precomputed results
     for i in range(x):
         if i >= len(nums):
             break
-
+            
         n = nums[i]
-
-        if n < 2:
-            # No primes available, Maria can't move first, Ben wins
-            ben_wins += 1
-            continue
-
-        # Simulate the game for this round
-        winner = simulate_game(n)
-
-        if winner == "Maria":
+        
+        if winners[n] == "Maria":
             maria_wins += 1
         else:
             ben_wins += 1
-
+    
     # Determine overall winner
     if maria_wins > ben_wins:
         return "Winner: Maria"
@@ -49,64 +49,69 @@ def isWinner(x, nums):
         return None
 
 
-def simulate_game(n):
+def precompute_winners(max_n):
     """
-    Simulate a single game round and return the winner.
-
+    Precompute game winners for all n from 1 to max_n using dynamic programming.
+    
+    The key insight: The game outcome depends only on the count of prime moves available.
+    Since Maria goes first, she wins if there's an odd number of prime moves.
+    
     Args:
-        n (int): Upper limit of the set [1, 2, ..., n]
-
+        max_n (int): Maximum value to precompute
+        
     Returns:
-        str: "Maria" or "Ben"
+        list: winners[i] = winner for game with n = i
     """
-    # Create set of available numbers
-    # # available[i] = True if i is still in the set
-    available = [True] * (n + 1)
-    available[0] = False  # 0 is not in the original set
-
-    maria_turn = True
-
-    while True:
-        # Find the smallest available prime
-        prime_found = False
-
-        for i in range(2, n + 1):
-            if available[i] and is_prime(i):
-                # Remove this prime and all its multiples
-                for j in range(i, n + 1, i):
-                    available[j] = False
-                prime_found = True
-                break
-
-        if not prime_found:
-            # Current player can't move, they lose
-            if maria_turn:
-                return "Ben"  # Maria can't move, Ben wins
-            else:
-                return "Maria"  # Ben can't move, Maria wins
-
-        # Switch turns
-        maria_turn = not maria_turn
+    if max_n < 1:
+        return ["Ben"]
+    
+    # Generate all primes up to max_n using Sieve of Eratosthenes
+    primes = sieve_of_eratosthenes(max_n)
+    
+    # Convert to set for O(1) lookup
+    prime_set = set(primes)
+    
+    # winners[i] stores the winner for n = i
+    winners = ["Ben"] * (max_n + 1)
+    
+    # For each possible n, determine the winner
+    for n in range(1, max_n + 1):
+        # Count how many primes are <= n
+        prime_count = sum(1 for p in primes if p <= n)
+        
+        # Maria wins if odd number of primes (she goes first)
+        # Ben wins if even number of primes
+        if prime_count % 2 == 1:
+            winners[n] = "Maria"
+        else:
+            winners[n] = "Ben"
+    
+    return winners
 
 
-def is_prime(n):
+def sieve_of_eratosthenes(limit):
     """
-    Check if a number is prime.
+    Generate all prime numbers up to limit using Sieve of Eratosthenes.
+    
     Args:
-        n (int): Number to check
-
+        limit (int): Upper limit (inclusive)
+        
     Returns:
-        bool: True if n is prime, False otherwise
+        list: List of prime numbers up to limit
     """
-    if n < 2:
-        return False
-    if n == 2:
-        return True
-    if n % 2 == 0:
-        return False
-
-    # Check odd divisors up to sqrt(n)
-    for i in range(3, int(n ** 0.5) + 1, 2):
-        if n % i == 0:
-            return False
-    return True
+    if limit < 2:
+        return []
+    
+    # Initialize boolean array - True means potentially prime
+    is_prime = [True] * (limit + 1)
+    is_prime[0] = is_prime[1] = False
+    
+    # Sieve algorithm
+    for i in range(2, int(limit ** 0.5) + 1):
+        if is_prime[i]:
+            # Mark all multiples of i as composite
+            for j in range(i * i, limit + 1, i):
+                is_prime[j] = False
+    
+    # Collect all prime numbers
+    return [i for i in range(2, limit + 1) if is_prime[i]]
