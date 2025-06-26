@@ -12,7 +12,7 @@ def isWinner(x, nums):
     Args:
         x (int): Number of rounds
         nums (list): Array of n values for each round
- 
+
     Returns:
         str or None: Winner format or None if tie
     """
